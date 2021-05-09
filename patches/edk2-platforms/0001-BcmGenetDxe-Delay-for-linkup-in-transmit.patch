@@ -1,0 +1,81 @@
+From 146e73ba45c88d1ef8e20ba5a9892f14adc03b14 Mon Sep 17 00:00:00 2001
+From: Jeremy Linton <jeremy.linton@arm.com>
+Date: Thu, 15 Apr 2021 12:46:17 -0500
+Subject: [PATCH] Silicon/Broadcom/BcmGenetDxe: Delay for linkup in transmit
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Under normal circumstances GenetSimpleNetworkTransmit won't be
+called unless the rest of the network stack detects the link is
+up. So, during normal operation when the adapter is initialized
+the link naturally transitions to link up, and then is ready for
+activity later in the boot sequence. If that hasn't happened by
+the time PXE runs then it will itself wait for the link.
+
+OTOH, the normal distro PXE sequence involves PXE loading shim
+which in turn loads grub, which tries to read machine specific
+configs, modules, and grub.cfg in order to prepare the boot menu.
+Then, once a grub selection is picked, it might try to load the
+kernel+initrd.
+
+In this sequence the network stack is shutdown and restarted
+multiple times. Grub though, starts up, notices its been network
+booted, reads saved network parameters and immediately tries to
+transmit data assuming the link is still up.
+
+When that happens grub will print "couldn’t send network packet"
+and if that lasts long enough it fails to load grub.cfg and the
+user gets dropped to the grub prompt because no one in the path
+bothers to assure the link state has transitioned back up.
+
+For reference: https://github.com/pftf/RPi4/issues/113
+
+Signed-off-by: Jeremy Linton <jeremy.linton@arm.com>
+---
+ .../Drivers/Net/BcmGenetDxe/SimpleNetwork.c   | 24 +++++++++++++++++--
+ 1 file changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/Silicon/Broadcom/Drivers/Net/BcmGenetDxe/SimpleNetwork.c b/Silicon/Broadcom/Drivers/Net/BcmGenetDxe/SimpleNetwork.c
+index 1bda18f157..29c76d8495 100644
+--- a/Silicon/Broadcom/Drivers/Net/BcmGenetDxe/SimpleNetwork.c
++++ b/Silicon/Broadcom/Drivers/Net/BcmGenetDxe/SimpleNetwork.c
+@@ -13,6 +13,7 @@
+ #include <Library/DebugLib.h>
+ #include <Library/DmaLib.h>
+ #include <Library/NetLib.h>
++#include <Library/UefiBootServicesTableLib.h>
+ #include <Protocol/SimpleNetwork.h>
+ 
+ #include "BcmGenetDxe.h"
+@@ -590,9 +591,28 @@ GenetSimpleNetworkTransmit (
+ 
+   if (!Genet->SnpMode.MediaPresent) {
+     //
+-    // Don't bother transmitting if there's no link.
++    // We should only really get here if the link was up
++    // and is now down due to a stop/shutdown sequence, and
++    // the app (grub) doesn't bother to check link state
++    // because it was up a moment before.
++    // Lets wait a bit for the link to resume, rather than
++    // failing to send. In the case of grub it works either way
++    // but we can't be sure that is universally true, and
++    // hanging for a couple seconds is nicer than a screen of
++    // grub send failure messages.
+     //
+-    return EFI_NOT_READY;
++    int retries = 1000;
++    DEBUG ((DEBUG_INFO, "%a: Waiting 10s for link\n", __FUNCTION__));
++    do {
++      gBS->Stall (10000);
++      Status = GenericPhyUpdateConfig (&Genet->Phy);
++    } while (EFI_ERROR (Status) && retries--);
++    if (EFI_ERROR (Status)) {
++      DEBUG ((DEBUG_ERROR, "%a: no link\n", __FUNCTION__));
++      return EFI_NOT_READY;
++    } else {
++      Genet->SnpMode.MediaPresent = TRUE;
++    }
+   }
+ 
+   if (HeaderSize != 0) {

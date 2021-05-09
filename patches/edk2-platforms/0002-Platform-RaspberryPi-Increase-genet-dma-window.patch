@@ -1,0 +1,28 @@
+From f17fe4c14721ae1a39b72e267ec409f98a2b9067 Mon Sep 17 00:00:00 2001
+From: Jeremy Linton <jeremy.linton@arm.com>
+Date: Thu, 15 Apr 2021 13:06:25 -0500
+Subject: [PATCH] Platform/RaspberryPi: Increase genet dma window
+
+The genet is capable of addressing the entire memory space
+on the RPI4. Lets allow it to dma into those regions.
+This solves intermittent issues with grub/etc being able
+to communicate when the 3G limit is lifted on 8G boards.
+
+Signed-off-by: Jeremy Linton <jeremy.linton@arm.com>
+---
+ Platform/RaspberryPi/RPi4/RPi4.dsc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Platform/RaspberryPi/RPi4/RPi4.dsc b/Platform/RaspberryPi/RPi4/RPi4.dsc
+index 56f87b547b..91e2487cc0 100644
+--- a/Platform/RaspberryPi/RPi4/RPi4.dsc
++++ b/Platform/RaspberryPi/RPi4/RPi4.dsc
+@@ -728,7 +728,7 @@
+   Silicon/Broadcom/Drivers/Net/BcmGenetDxe/BcmGenetDxe.inf {
+     <PcdsFixedAtBuild>
+       gEmbeddedTokenSpaceGuid.PcdDmaDeviceOffset|0x00000000
+-      gEmbeddedTokenSpaceGuid.PcdDmaDeviceLimit|0xffffffff
++      gEmbeddedTokenSpaceGuid.PcdDmaDeviceLimit|0xffffffffff
+   }
+ 
+   #
