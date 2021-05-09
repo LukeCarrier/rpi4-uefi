@@ -1,0 +1,28 @@
+# Copyright (c) 2021, Pete Batard <pete@akeo.ie>
+# SPDX-License-Identifier: BSD-3-Clause
+
+name: UEFI firmware - EDK2 build
+
+on:  
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out EDK2 repositories
+      uses: actions/checkout@v2
+    - name: Build
+      uses: ./.github/actions/build
+      with:
+        version: ${{github.sha}}
+    - name: Build
+      uses: ./.github/actions/upload-artifacts
+      with:
+        version: ${{github.sha}}

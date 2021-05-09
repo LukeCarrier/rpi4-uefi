@@ -1,0 +1,18 @@
+name: Upload EDK2 UEFI firmware build artifacts
+description: Upload the firmware build artifacts
+
+inputs:
+  version:
+    description: Firmware version
+    required: true
+
+runs:
+  using: composite
+  steps:
+  - name: Upload UEFI firmware artifacts
+    uses: actions/upload-artifact@v2
+    with:
+      name: RPi4 UEFI Firmware ${{inputs.version}} Artifacts
+      path: |
+        Build/RPi4/DEBUG_GCC5/FV/RPI_EFI.fd
+        Build/RPi4/RELEASE_GCC5/FV/RPI_EFI.fd
