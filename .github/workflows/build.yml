@@ -22,7 +22,10 @@ jobs:
       uses: ./.github/actions/build
       with:
         version: ${{github.sha}}
-    - name: Build
-      uses: ./.github/actions/upload-artifacts
+    - name: Upload UEFI firmware artifacts
+      uses: actions/upload-artifact@v2
       with:
-        version: ${{github.sha}}
+        name: RPi4 UEFI Firmware ${{github.sha}} Artifacts
+        path: |
+          Build/RPi4/DEBUG_GCC5/FV/RPI_EFI.fd
+          Build/RPi4/RELEASE_GCC5/FV/RPI_EFI.fd
